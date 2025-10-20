@@ -401,22 +401,23 @@ async def generate_dashboard_summary(
         # Supabaseクライアント取得
         supabase = get_supabase_client()
         
-        # dashboardテーブルから該当日のvibe_scoreが存在するレコードを取得（時系列順）
-        # ステータスに関係なく、データがあれば処理対象とする
+        # dashboardテーブルから該当日の全レコードを取得（時系列順）
+        # status='completed'のデータを全て対象とする（vibe_scoreの有無に関係なく）
+        # 失敗レコード（vibe_score=null）も含めて取得し、累積分析に含める
         dashboard_response = supabase.table("dashboard").select("*").eq(
             "device_id", device_id
         ).eq(
             "date", date
-        ).not_.is_(
-            "vibe_score", "null"  # vibe_scoreが存在するデータを全て対象とする
+        ).eq(
+            "status", "completed"  # status='completed'のデータを全て対象
         ).order(
             "time_block", desc=False
         ).execute()
-        
+
         if not dashboard_response.data:
             return {
                 "status": "warning",
-                "message": f"vibe_scoreが存在するデータが見つかりません。device_id: {device_id}, date: {date}",
+                "message": f"処理済みデータが見つかりません。device_id: {device_id}, date: {date}",
                 "processed_count": 0
             }
         
@@ -793,6 +794,99 @@ def generate_daily_summary_prompt(device_id: str, date: str, timeline: List[Dict
    - 些細な変動は除外し、意味のある変化に焦点"""
     
     return prompt
+
+
+@app.post("/create-failed-record")
+async def create_failed_record(
+    device_id: str = Query(..., description="デバイスID"),
+    date: str = Query(..., description="日付 (YYYY-MM-DD)"),
+    time_block: str = Query(..., description="タイムブロック (例: 22-30)"),
+    failure_reason: str = Query("quota_exceeded", description="失敗理由"),
+    error_message: str = Query("", description="エラーメッセージ")
+):
+    """
+    処理失敗時にdashboardテーブルに失敗レコードを作成する
+
+    処理内容:
+    1. 失敗情報を受け取る
+    2. dashboardテーブルに失敗レコードを挿入（status: completed）
+    3. 次のプロセス（累積分析）を正常にトリガーできるようにする
+
+    Args:
+        device_id: デバイスID
+        date: 日付 (YYYY-MM-DD)
+        time_block: タイムブロック (例: 22-30)
+        failure_reason: 失敗理由（quota_exceeded, api_error等）
+        error_message: エラーメッセージ（オプション）
+
+    Returns:
+        作成結果のレスポンス
+    """
+    try:
+        # 日付形式の検証
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="無効な日付形式です。YYYY-MM-DD形式で入力してください。"
+            )
+
+        # Supabaseクライアント取得
+        supabase = get_supabase_client()
+
+        # ユーザー向けメッセージの生成
+        if failure_reason == "quota_exceeded":
+            user_message = "音声の文字起こしに失敗しました。再処理を行っていますので、しばらくお待ちください。"
+        elif failure_reason == "api_error":
+            user_message = "一時的なエラーが発生しました。再処理を行っていますので、しばらくお待ちください。"
+        else:
+            user_message = "処理に失敗しました。再処理を行っていますので、しばらくお待ちください。"
+
+        # dashboardテーブルに失敗レコードを挿入
+        dashboard_record = {
+            "device_id": device_id,
+            "date": date,
+            "time_block": time_block,
+            "summary": user_message,
+            "vibe_score": 0,  # 重要: 未処理(null)と区別するため0にする
+            "status": "completed",  # 重要: 次のプロセスに進ませるため
+            "behavior": "不明",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "prompt": None,
+            "processed_at": None,
+            "analysis_result": None
+        }
+
+        # UPSERT（再処理時は上書きされる）
+        response = supabase.table("dashboard").upsert(
+            dashboard_record,
+            on_conflict="device_id,date,time_block"
+        ).execute()
+
+        print(f"✅ 失敗レコードをdashboardテーブルに作成しました: {device_id}, {date}, {time_block}")
+
+        return {
+            "status": "success",
+            "message": "失敗レコードを作成しました",
+            "device_id": device_id,
+            "date": date,
+            "time_block": time_block,
+            "failure_reason": failure_reason,
+            "user_message": user_message
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ 失敗レコード作成エラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"失敗レコードの作成に失敗しました: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
