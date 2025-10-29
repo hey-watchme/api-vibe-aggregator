@@ -2,6 +2,79 @@
 
 タイムブロック単位、あるいは1日分（48個）のトランスクリプションや音響データを統合し、ChatGPT分析に適したプロンプトを生成するFastAPIアプリケーション
 
+---
+
+## 🗺️ ルーティング詳細
+
+| 項目 | 値 | 説明 |
+|------|-----|------|
+| **🏷️ サービス名** | Vibe Aggregator API | プロンプト生成・データ統合 |
+| **📦 機能** | Prompt Generator | ChatGPT分析用プロンプト生成 |
+| | | |
+| **🌐 外部アクセス（Nginx）** | | |
+| └ 公開エンドポイント | `https://api.hey-watch.me/vibe-analysis/aggregator/` | ✅ 統一命名規則に準拠（2025-10-28） |
+| └ Nginx設定ファイル | `/etc/nginx/sites-available/api.hey-watch.me` | |
+| └ proxy_pass先 | `http://localhost:8009/` | 内部転送先 |
+| └ タイムアウト | 180秒 | read/connect/send |
+| | | |
+| **🔌 API内部エンドポイント** | | |
+| └ ヘルスチェック | `/health` | GET |
+| └ **タイムブロックプロンプト生成** | `/generate-timeblock-prompt` | GET - Lambdaから呼ばれる |
+| └ **失敗レコード作成** | `/create-failed-record` | POST - クォーター超過時 |
+| └ **ダッシュボードサマリー** | `/generate-dashboard-summary` | GET - 累積分析用 |
+| | | |
+| **🐳 Docker/コンテナ** | | |
+| └ コンテナ名 | `api_gen_prompt_mood_chart` | ⚠️ 統一前の名前 |
+| └ ポート（内部） | 8009 | コンテナ内 |
+| └ ポート（公開） | `127.0.0.1:8009:8009` | ローカルホストのみ |
+| └ ヘルスチェック | `/health` | Docker healthcheck |
+| | | |
+| **☁️ AWS ECR** | | |
+| └ リポジトリ名 | `watchme-api-vibe-aggregator` | ⚠️ 統一前の名前 |
+| └ リージョン | ap-southeast-2 (Sydney) | |
+| └ URI | `754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator:latest` | |
+| | | |
+| **⚙️ systemd** | | |
+| └ サービス名 | （コンテナ名に依存） | ⚠️ |
+| └ 起動コマンド | `docker-compose up -d` | |
+| └ 自動起動 | enabled | サーバー再起動時に自動起動 |
+| | | |
+| **📂 ディレクトリ** | | |
+| └ ソースコード | `/Users/kaya.matsumoto/projects/watchme/api/vibe-analysis/aggregator` | ローカル |
+| └ GitHubリポジトリ | `hey-watchme/api-vibe-aggregator` | |
+| └ EC2配置場所 | Docker内部のみ（ディレクトリなし） | ECR経由デプロイ |
+| | | |
+| **🔗 呼び出し元** | | |
+| └ Lambda関数（タイムブロック） | `watchme-audio-worker` | 30分ごと |
+| └ 呼び出しURL（タイムブロック） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt` | **統一命名規則に準拠（2025-10-28修正）** |
+| └ Lambda関数（ダッシュボード） | `watchme-dashboard-summary-worker` | タイムブロック完了時 |
+| └ 呼び出しURL（ダッシュボード） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboard-summary` | **統一命名規則に準拠（2025-10-28修正）** |
+| └ 環境変数 | `API_BASE_URL=https://api.hey-watch.me` | Lambda内 |
+
+### ✅ 統一命名規則への対応完了（2025-10-28）
+
+**API命名統一タスクに基づき、以下を修正**:
+
+1. **Nginxエンドポイント**: `/vibe-aggregator/` → `/vibe-analysis/aggregator/`
+2. **Lambda関数**: URL修正完了（watchme-audio-worker, watchme-dashboard-summary-worker）
+3. **統一原則**: `/{domain}/{service}/` に準拠
+   - domain: `vibe-analysis`
+   - service: `aggregator`
+
+**修正完了ファイル**:
+- ✅ `/watchme/server-configs/sites-available/api.hey-watch.me`
+- ✅ `/watchme/server-configs/lambda-functions/watchme-audio-worker/lambda_function.py`
+- ✅ `/watchme/server-configs/lambda-functions/watchme-dashboard-summary-worker/lambda_function.py`
+- ✅ `/watchme/api/vibe-analysis/aggregator/README.md`（このファイル）
+
+**注意**:
+- エンドポイントのみ統一完了（オプション1）
+- コンテナ名・ECRリポジトリ名は将来統一予定:
+  - コンテナ: `api_gen_prompt_mood_chart` → `vibe-analysis-aggregator`
+  - ECR: `watchme-api-vibe-aggregator` → `watchme-vibe-analysis-aggregator`
+
+---
+
 ## 🚨 重要: デプロイ方法について
 
 **このAPIは完全自動CI/CDパイプラインで管理されています。**
@@ -14,7 +87,7 @@
 - **ECRリポジトリ**: `754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator`
 - **コンテナ名**: `api_gen_prompt_mood_chart`
 - **ポート**: 8009
-- **公開URL**: `https://api.hey-watch.me/vibe-aggregator/`
+- **公開URL**: `https://api.hey-watch.me/vibe-analysis/aggregator/`
 - **デプロイ方式**: GitHub Actions → ECR → EC2（完全自動）
 
 ## 🚀 CI/CD パイプライン
@@ -42,7 +115,7 @@ git commit -m "feat: 新機能追加"
 git push origin main
 
 # 3. 自動デプロイ完了を待つ（約5分）
-# GitHub Actions: https://github.com/[your-repo]/actions
+# GitHub Actions: https://github.com/hey-watchme/api-vibe-aggregator/actions
 ```
 
 ### CI/CD設定詳細
@@ -95,31 +168,31 @@ uvicorn main:app --host 0.0.0.0 --port 8009 --reload
 ## 📡 APIエンドポイント
 
 ### 本番環境URL
-**ベースURL**: `https://api.hey-watch.me/vibe-aggregator`
+**ベースURL**: `https://api.hey-watch.me/vibe-analysis/aggregator`
 
 ### 利用可能なエンドポイント
 
 #### ヘルスチェック
 ```bash
-curl -X GET "https://api.hey-watch.me/vibe-aggregator/health"
+curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/health"
 ```
 
 #### 1日分統合処理 vibe_whisper_prompt
 48個のタイムブロックデータを統合してプロンプトを生成
 ```bash
-curl -X GET "https://api.hey-watch.me/vibe-aggregator/generate-mood-prompt-supabase?device_id=d067d407-cf73-4174-a9c1-d91fb60d64d0&date=2025-07-15"
+curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-mood-prompt-supabase?device_id=d067d407-cf73-4174-a9c1-d91fb60d64d0&date=2025-07-15"
 ```
 
 #### タイムブロック単位処理 dashboard
 マルチモーダルプロンプト生成（Whisper + YAMNet + OpenSMILE + 観測対象者情報）
 ```bash
-curl -X GET "https://api.hey-watch.me/vibe-aggregator/generate-timeblock-prompt?device_id=9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93&date=2025-09-01&time_block=16-00"
+curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt?device_id=9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93&date=2025-09-01&time_block=16-00"
 ```
 
 #### ダッシュボード統合処理 dashboard_summary
 1日分のダッシュボード分析結果を統合して累積評価を生成
 ```bash
-curl -X GET "https://api.hey-watch.me/vibe-aggregator/generate-dashboard-summary?device_id=9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93&date=2025-09-08"
+curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboard-summary?device_id=9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93&date=2025-09-08"
 ```
 
 ### ローカル開発時のURL
@@ -374,8 +447,8 @@ dashboard (summary + vibe_score) → [このAPI] → dashboard_summary (prompt)
 
 ## 📚 API ドキュメント
 
-- **Swagger UI**: `https://api.hey-watch.me/vibe-aggregator/docs`
-- **ReDoc**: `https://api.hey-watch.me/vibe-aggregator/redoc`
+- **Swagger UI**: `https://api.hey-watch.me/vibe-analysis/aggregator/docs`
+- **ReDoc**: `https://api.hey-watch.me/vibe-analysis/aggregator/redoc`
 
 ローカル開発環境では `http://localhost:8009/docs` または `http://localhost:8009/redoc` を使用してください。
 
@@ -458,7 +531,7 @@ cd /home/ubuntu/watchme-api-vibe-aggregator
 curl http://localhost:8009/health
 
 # ヘルスチェック（外部）
-curl https://api.hey-watch.me/vibe-aggregator/health
+curl https://api.hey-watch.me/vibe-analysis/aggregator/health
 
 # コンテナ状態確認
 docker ps | grep api_gen_prompt_mood_chart
@@ -475,7 +548,7 @@ $ docker inspect api_gen_prompt_mood_chart --format "{{.Config.Image}}"
 754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator:latest
 
 # 外部アクセス確認
-$ curl https://api.hey-watch.me/vibe-aggregator/health
+$ curl https://api.hey-watch.me/vibe-analysis/aggregator/health
 {"status":"healthy","timestamp":"2025-09-03T12:48:06.409480"}
 ```
 
@@ -577,7 +650,7 @@ CI/CD用のIAMユーザーに必要な最小権限:
 
 1. **GitHub Secretsの設定**
    ```
-   1. https://github.com/[your-username]/api_gen-prompt_mood-chart_v1 を開く
+   1. https://github.com/hey-watchme/api-vibe-aggregator を開く
    2. Settings → Secrets and variables → Actions
    3. "New repository secret"をクリック
    4. AWS_ACCESS_KEY_ID を追加
@@ -607,7 +680,7 @@ git commit -m "feat: 新機能追加"
 git push origin main
 
 # 3. GitHub Actionsの確認（ブラウザ）
-# https://github.com/[your-username]/api_gen-prompt_mood-chart_v1/actions
+# https://github.com/hey-watchme/api-vibe-aggregator/actions
 
 # 4. EC2で本番デプロイ（手動）
 ssh -i ~/watchme-key.pem ubuntu@3.24.16.82
@@ -715,7 +788,7 @@ import requests
 import streamlit as st
 
 # 本番環境での使用
-base_url = "https://api.hey-watch.me/vibe-aggregator"
+base_url = "https://api.hey-watch.me/vibe-analysis/aggregator"
 
 # API呼び出し
 response = requests.get(
@@ -742,7 +815,7 @@ import aiohttp
 
 # 同期版
 def generate_mood_prompt(device_id: str, date: str):
-    url = "https://api.hey-watch.me/vibe-aggregator/generate-mood-prompt-supabase"
+    url = "https://api.hey-watch.me/vibe-analysis/aggregator/generate-mood-prompt-supabase"
     params = {"device_id": device_id, "date": date}
     
     response = requests.get(url, params=params)
@@ -753,7 +826,7 @@ def generate_mood_prompt(device_id: str, date: str):
 
 # 非同期版（推奨）
 async def generate_mood_prompt_async(device_id: str, date: str):
-    url = "https://api.hey-watch.me/vibe-aggregator/generate-mood-prompt-supabase"
+    url = "https://api.hey-watch.me/vibe-analysis/aggregator/generate-mood-prompt-supabase"
     params = {"device_id": device_id, "date": date}
     
     async with aiohttp.ClientSession() as session:
