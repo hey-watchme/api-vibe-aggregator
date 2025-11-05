@@ -204,7 +204,7 @@ async def generate_mood_prompt_supabase(
                 response = client.table('vibe_whisper').select('transcription').eq('device_id', device_id).eq('date', date).eq('time_block', time_block).execute()
                 
                 if response.data and len(response.data) > 0:
-                    transcription = response.data[0].get('transcription', '').strip()
+                    transcription = (response.data[0].get('transcription') or '').strip()
                     if transcription:
                         # 発話あり：テキストを分析
                         texts.append(f"[{time_block}] {transcription}")
@@ -688,7 +688,7 @@ def generate_daily_summary_prompt(device_id: str, date: str, timeline: List[Dict
     
     for entry in timeline:
         time = entry["time_block"].replace("-", ":")
-        summary = entry.get("summary", "").strip()
+        summary = (entry.get("summary") or "").strip()
         score = entry.get("vibe_score")
         
         # summaryに実質的な内容がある場合のみ追加
