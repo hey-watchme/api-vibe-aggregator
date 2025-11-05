@@ -113,7 +113,7 @@ jobs:
         ssh ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
           set -e
           echo "📦 Navigating to application directory..."
-          cd /home/ubuntu/watchme-api-vibe-aggregator
+          cd /home/ubuntu/vibe-analysis-aggregator
           
           echo "🔄 Running deployment script..."
           ./run-prod.sh
