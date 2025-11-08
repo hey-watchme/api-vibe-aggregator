@@ -469,7 +469,7 @@ async def generate_dashboard_summary(
         
         for block in processed_blocks:
             # summaryとvibe_scoreのみを取得（analysis_resultは使わない）
-            summary = block.get("summary", "")
+            summary = block.get("summary") or ""  # NULLの場合は空文字列に変換
             vibe_score = block.get("vibe_score")
             
             # スコアの統計
