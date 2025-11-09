@@ -459,7 +459,7 @@ dashboard (summary + vibe_score) → [このAPI] → dashboard_summary (prompt)
 ### 前提条件
 1. **watchme-networkインフラストラクチャが起動済み**
 2. **環境変数ファイル（.env）が配置済み**
-   - `/home/ubuntu/watchme-api-vibe-aggregator/.env`
+   - `/home/ubuntu/vibe-analysis-aggregator/.env`
 3. **AWS CLIが設定済み**
 
 ### デプロイ手順
@@ -482,7 +482,7 @@ cd /Users/kaya.matsumoto/api_gen-prompt_mood-chart_v1
 ssh -i ~/watchme-key.pem ubuntu@3.24.16.82
 
 # デプロイスクリプトを実行
-cd /home/ubuntu/watchme-api-vibe-aggregator
+cd /home/ubuntu/vibe-analysis-aggregator
 ./run-prod.sh
 ```
 
@@ -493,7 +493,7 @@ aws ecr get-login-password --region ap-southeast-2 | \
   docker login --username AWS --password-stdin \
   754724220380.dkr.ecr.ap-southeast-2.amazonaws.com
 
-docker pull 754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator:latest
+docker pull 754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-vibe-analysis-aggregator:latest
 
 # コンテナを再起動
 docker-compose -f docker-compose.prod.yml down
@@ -504,22 +504,22 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ```bash
 # 1. EC2にディレクトリ作成
-ssh -i ~/watchme-key.pem ubuntu@3.24.16.82 'mkdir -p /home/ubuntu/watchme-api-vibe-aggregator'
+ssh -i ~/watchme-key.pem ubuntu@3.24.16.82 'mkdir -p /home/ubuntu/vibe-analysis-aggregator'
 
 # 2. 必要なファイルをコピー
-scp -i ~/watchme-key.pem docker-compose.prod.yml ubuntu@3.24.16.82:/home/ubuntu/watchme-api-vibe-aggregator/
-scp -i ~/watchme-key.pem run-prod.sh ubuntu@3.24.16.82:/home/ubuntu/watchme-api-vibe-aggregator/
+scp -i ~/watchme-key.pem docker-compose.prod.yml ubuntu@3.24.16.82:/home/ubuntu/vibe-analysis-aggregator/
+scp -i ~/watchme-key.pem run-prod.sh ubuntu@3.24.16.82:/home/ubuntu/vibe-analysis-aggregator/
 
 # 3. .envファイルを作成
 ssh -i ~/watchme-key.pem ubuntu@3.24.16.82
-cat > /home/ubuntu/watchme-api-vibe-aggregator/.env << EOF
+cat > /home/ubuntu/vibe-analysis-aggregator/.env << EOF
 SUPABASE_URL=your-supabase-url
 SUPABASE_KEY=your-supabase-key
 EC2_BASE_URL=production
 EOF
 
 # 4. デプロイ実行
-cd /home/ubuntu/watchme-api-vibe-aggregator
+cd /home/ubuntu/vibe-analysis-aggregator
 ./run-prod.sh
 ```
 
@@ -533,18 +533,18 @@ curl http://localhost:8009/health
 curl https://api.hey-watch.me/vibe-analysis/aggregator/health
 
 # コンテナ状態確認
-docker ps | grep api_gen_prompt_mood_chart
+docker ps | grep vibe-analysis-aggregator
 
 # ログ確認
-docker logs -f api_gen_prompt_mood_chart
+docker logs -f vibe-analysis-aggregator
 ```
 
 ### デプロイ成功確認（2025年9月3日）
 
 ```bash
 # コンテナイメージ確認
-$ docker inspect api_gen_prompt_mood_chart --format "{{.Config.Image}}"
-754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator:latest
+$ docker inspect vibe-analysis-aggregator --format "{{.Config.Image}}"
+754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-vibe-analysis-aggregator:latest
 
 # 外部アクセス確認
 $ curl https://api.hey-watch.me/vibe-analysis/aggregator/health
@@ -636,7 +636,7 @@ CI/CD用のIAMユーザーに必要な最小権限:
         "ecr:CompleteLayerUpload"
       ],
       "Resource": [
-        "arn:aws:ecr:ap-southeast-2:754724220380:repository/watchme-api-vibe-aggregator"
+        "arn:aws:ecr:ap-southeast-2:754724220380:repository/watchme-vibe-analysis-aggregator"
       ]
     }
   ]
@@ -683,7 +683,7 @@ git push origin main
 
 # 4. EC2で本番デプロイ（手動）
 ssh -i ~/watchme-key.pem ubuntu@3.24.16.82
-cd /home/ubuntu/watchme-api-vibe-aggregator
+cd /home/ubuntu/vibe-analysis-aggregator
 ./run-prod.sh
 ```
 
@@ -735,7 +735,7 @@ cd /home/ubuntu/watchme-api-vibe-aggregator
 3. **AWS CLIでの確認**
    ```bash
    # ECRリポジトリの存在確認
-   aws ecr describe-repositories --repository-names watchme-api-vibe-aggregator
+   aws ecr describe-repositories --repository-names watchme-vibe-analysis-aggregator
    ```
 
 ### 📚 関連ファイル
@@ -770,7 +770,7 @@ docker-compose ps
 docker-compose logs -f
 
 # コンテナ内に入って調査
-docker exec -it api_gen_prompt_mood_chart bash
+docker exec -it vibe-analysis-aggregator bash
 
 # API直接テスト（EC2上で）
 curl -X GET "http://localhost:8009/generate-mood-prompt-supabase?device_id=d067d407-cf73-4174-a9c1-d91fb60d64d0&date=2025-07-14"
