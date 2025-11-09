@@ -83,7 +83,7 @@ async def get_whisper_data(supabase_client, device_id: str, date: str, time_bloc
     audio_featuresテーブルから特定のタイムブロックのトランスクリプトを取得
     """
     try:
-        result = supabase_client.table('audio_features').select('transcriber_result').eq(
+        result = supabase_client.table('audio_features').select('vibe_transcriber_result').eq(
             'device_id', device_id
         ).eq(
             'date', date
@@ -92,7 +92,7 @@ async def get_whisper_data(supabase_client, device_id: str, date: str, time_bloc
         ).execute()
 
         if result.data and len(result.data) > 0:
-            return result.data[0].get('transcriber_result', '')
+            return result.data[0].get('vibe_transcriber_result', '')
         return None
     except Exception as e:
         print(f"Error fetching transcriber data: {e}")

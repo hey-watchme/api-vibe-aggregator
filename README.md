@@ -873,7 +873,7 @@ print(result)
 
 **読み込み元の変更**:
 - ❌ 旧：`vibe_whisper.transcription`
-- ✅ 新：`audio_features.transcriber_result`（TEXT型）
+- ✅ 新：`audio_features.vibe_transcriber_result`（TEXT型）
 
 - ❌ 旧：`behavior_yamnet.events`
 - ✅ 新：`audio_features.behavior_extractor_result`（JSONB型）
@@ -912,3 +912,18 @@ print(result)
 
 1. `/generate-dashboard-summary`を新しいAPI「Dashboard Summary API」に分離
 2. `/create-failed-record`をVibe Scorer APIに移動
+
+---
+
+## 📝 変更履歴
+
+### v7.1.0 (2025-11-09)
+- **カラム名を命名規則に統一**
+  - 読み込み元：`transcriber_result` → `vibe_transcriber_result`
+  - 命名規則 `{domain}_{technology}_result` に準拠
+
+### v7.0.0 (2025-11-09)
+- **audio_aggregatorテーブルへの移行完了（`/generate-timeblock-prompt`のみ）**
+  - 読み込み元を統一テーブル`audio_features`に変更
+  - 保存先を`dashboard`から`audio_aggregator`に変更
+  - ステータス管理関数を削除（Features APIが管理）
