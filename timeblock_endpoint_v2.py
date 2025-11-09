@@ -250,32 +250,11 @@ async def process_timeblock_v3(supabase_client, device_id: str, date: str, time_
     
     # プロンプト保存
     dashboard_saved = await save_prompt_to_dashboard(supabase_client, device_id, date, time_block, prompt)
-    
-    # ステータス更新
-    status_updates = {
-        "whisper_updated": False,
-        "yamnet_updated": False,
-        "opensmile_updated": False
-    }
-    
-    if dashboard_saved:
-        print(f"\n📝 Updating status for used data sources...")
-        
-        if has_whisper:
-            status_updates["whisper_updated"] = await update_whisper_status(
-                supabase_client, device_id, date, time_block
-            )
-        
-        if has_yamnet:
-            status_updates["yamnet_updated"] = await update_yamnet_status(
-                supabase_client, device_id, date, time_block
-            )
-        
-        if has_opensmile:
-            status_updates["opensmile_updated"] = await update_opensmile_status(
-                supabase_client, device_id, date, time_block
-            )
-    
+
+    # 注意: Features APIが既にステータスを管理しているため、ここでの更新は不要
+    # （以前の実装では vibe_whisper, behavior_yamnet, emotion_opensmile テーブルを更新していたが、
+    #  新アーキテクチャでは audio_features テーブルで各APIが自分でステータスを管理する）
+
     return {
         "status": "success",
         "version": "v3-improved",
@@ -289,6 +268,5 @@ async def process_timeblock_v3(supabase_client, device_id: str, date: str, time_
         "has_opensmile_data": has_opensmile,
         "sed_events_count": len(sed_data) if sed_data else 0,
         "opensmile_seconds": len(opensmile_data) if opensmile_data else 0,
-        "dashboard_saved": dashboard_saved,
-        "status_updates": status_updates
+        "aggregator_saved": dashboard_saved
     }

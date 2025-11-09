@@ -14,7 +14,7 @@
 
 1. ブラウザで以下のリポジトリを開きます：
    ```
-   https://github.com/[your-username]/api_gen-prompt_mood-chart_v1
+   https://github.com/hey-watchme/api-vibe-aggregator
    ```
 
 ### ステップ 2: Settings（設定）にアクセス

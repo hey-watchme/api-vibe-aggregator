@@ -106,7 +106,7 @@ docker run --read-only --security-opt=no-new-privileges
 ### GitHub Actions監査
 ```bash
 # 実行履歴の確認
-https://github.com/[org]/[repo]/actions
+https://github.com/hey-watchme/api-vibe-aggregator/actions
 
 # 監視すべき項目:
 - 予期しない時間のデプロイ

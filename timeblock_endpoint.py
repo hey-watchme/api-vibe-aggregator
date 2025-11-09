@@ -80,24 +80,22 @@ def generate_time_context(hour: int, minute: int) -> str:
 
 async def get_whisper_data(supabase_client, device_id: str, date: str, time_block: str) -> Optional[str]:
     """
-    vibe_whisperテーブルから特定のタイムブロックのトランスクリプトを取得
+    audio_featuresテーブルから特定のタイムブロックのトランスクリプトを取得
     """
     try:
-        # time_blockをtime_block形式に変換 (14-30 -> 14:30形式などに対応)
-        result = supabase_client.table('vibe_whisper').select('transcription').eq(
+        result = supabase_client.table('audio_features').select('transcriber_result').eq(
             'device_id', device_id
         ).eq(
             'date', date
         ).eq(
             'time_block', time_block
         ).execute()
-        
+
         if result.data and len(result.data) > 0:
-            # カラム名は 'transcription' (not 'transcript')
-            return result.data[0].get('transcription', '')
+            return result.data[0].get('transcriber_result', '')
         return None
     except Exception as e:
-        print(f"Error fetching whisper data: {e}")
+        print(f"Error fetching transcriber data: {e}")
         return None
 
 
@@ -138,52 +136,57 @@ async def get_subject_info(supabase_client, device_id: str) -> Optional[Dict]:
 
 async def get_sed_data(supabase_client, device_id: str, date: str, time_block: str) -> Optional[list]:
     """
-    behavior_yamnetテーブルから特定のタイムブロックのSEDデータを取得
-    eventsカラムからYAMNetの音響イベント検出結果を取得
+    audio_featuresテーブルから特定のタイムブロックの行動分析データを取得
+    behavior_extractor_resultカラムからYAMNetの音響イベント検出結果を取得
     """
     try:
-        result = supabase_client.table('behavior_yamnet').select('events').eq(
+        result = supabase_client.table('audio_features').select('behavior_extractor_result').eq(
             'device_id', device_id
         ).eq(
             'date', date
         ).eq(
             'time_block', time_block
         ).execute()
-        
+
         if result.data and len(result.data) > 0:
-            # eventsは既にJSONとしてパースされているはず
-            return result.data[0].get('events', [])
+            extractor_result = result.data[0].get('behavior_extractor_result')
+            if extractor_result:
+                # JSONB型なので直接辞書として扱える
+                # 'events'キーが存在する場合は取得
+                if isinstance(extractor_result, dict):
+                    return extractor_result.get('events', [])
+                return []
         return None
     except Exception as e:
-        print(f"Error fetching SED data from behavior_yamnet: {e}")
+        print(f"Error fetching behavior data from audio_features: {e}")
         return None
 
 
 async def get_opensmile_data(supabase_client, device_id: str, date: str, time_block: str) -> Optional[list]:
     """
-    emotion_opensmileテーブルから特定のタイムブロックのOpenSMILEデータを取得
-    selected_features_timelineカラムから音声特徴の時系列データを取得
+    audio_featuresテーブルから特定のタイムブロックの感情分析データを取得
+    emotion_extractor_resultカラムからKushinadaの感情特徴データを取得
     """
     try:
-        result = supabase_client.table('emotion_opensmile').select('selected_features_timeline').eq(
+        result = supabase_client.table('audio_features').select('emotion_extractor_result').eq(
             'device_id', device_id
         ).eq(
             'date', date
         ).eq(
             'time_block', time_block
         ).execute()
-        
+
         if result.data and len(result.data) > 0:
-            # selected_features_timelineは既にJSONとしてパースされているはず
-            timeline = result.data[0].get('selected_features_timeline', [])
-            # JSON文字列の場合はパース
-            if isinstance(timeline, str):
-                import json
-                timeline = json.loads(timeline)
-            return timeline
+            extractor_result = result.data[0].get('emotion_extractor_result')
+            if extractor_result:
+                # JSONB型なので直接辞書として扱える
+                # 'selected_features_timeline'キーが存在する場合は取得
+                if isinstance(extractor_result, dict):
+                    return extractor_result.get('selected_features_timeline', [])
+                return []
         return None
     except Exception as e:
-        print(f"Error fetching OpenSMILE data from emotion_opensmile: {e}")
+        print(f"Error fetching emotion data from audio_features: {e}")
         return None
 
 
@@ -529,22 +532,28 @@ async def update_opensmile_status(supabase_client, device_id: str, date: str, ti
 
 async def save_prompt_to_dashboard(supabase_client, device_id: str, date: str, time_block: str, prompt: str):
     """
-    生成したプロンプトをdashboardテーブルに保存
+    生成したプロンプトをaudio_aggregatorテーブルに保存
+
+    注意: audio_aggregatorはPrimary Key (device_id, date) で1日1レコード
+    time_blockは無視して、日次で累積更新
     """
     try:
         data = {
             'device_id': device_id,
             'date': date,
-            'time_block': time_block,
-            'prompt': prompt,
+            'vibe_aggregator_result': prompt,
+            'vibe_aggregator_processed_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
-        
-        result = supabase_client.table('dashboard').upsert(data).execute()
-        print(f"✅ Prompt saved to dashboard table for {time_block}")
+
+        result = supabase_client.table('audio_aggregator').upsert(
+            data,
+            on_conflict='device_id,date'
+        ).execute()
+        print(f"✅ Prompt saved to audio_aggregator table for {date} (time_block: {time_block})")
         return True
     except Exception as e:
-        print(f"Error saving prompt to dashboard: {e}")
+        print(f"Error saving prompt to audio_aggregator: {e}")
         traceback.print_exc()
         return False
 

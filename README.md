@@ -42,7 +42,7 @@
 | **📂 ディレクトリ** | | |
 | └ ソースコード | `/Users/kaya.matsumoto/projects/watchme/api/vibe-analysis/aggregator` | ローカル |
 | └ GitHubリポジトリ | `hey-watchme/api-vibe-aggregator` | |
-| └ EC2配置場所 | Docker内部のみ（ディレクトリなし） | ECR経由デプロイ |
+| └ EC2配置場所 | `/home/ubuntu/vibe-analysis-aggregator` | run-prod.sh実行ディレクトリ |
 | | | |
 | **🔗 呼び出し元** | | |
 | └ Lambda関数（タイムブロック） | `watchme-audio-worker` | 30分ごと |
@@ -860,3 +860,55 @@ print(result)
 - ✅ CORS設定済み
 - ✅ 適切なヘッダー設定
 - ✅ レート制限対応（Nginxレベル）
+
+---
+
+## 📝 変更履歴（CHANGELOG）
+
+### v7.0.0（2025-11-09）- 新テーブル構造統一
+
+**重要な変更：データベーステーブルの統一化**
+
+#### 変更内容
+
+**読み込み元の変更**:
+- ❌ 旧：`vibe_whisper.transcription`
+- ✅ 新：`audio_features.transcriber_result`（TEXT型）
+
+- ❌ 旧：`behavior_yamnet.events`
+- ✅ 新：`audio_features.behavior_extractor_result`（JSONB型）
+
+- ❌ 旧：`emotion_opensmile.selected_features_timeline`
+- ✅ 新：`audio_features.emotion_extractor_result`（JSONB型）
+
+**保存先の変更（`/generate-timeblock-prompt`エンドポイントのみ）**:
+- ❌ 旧：`dashboard.prompt`
+- ✅ 新：`audio_aggregator.vibe_aggregator_result`（TEXT型）
+- **Primary Key**: `(device_id, date)` - 1日1レコードで累積更新
+
+**削除された処理**:
+- ステータス更新関数（`update_whisper_status`, `update_yamnet_status`, `update_opensmile_status`）を削除
+  - 理由：Features API が既に自分でステータスを管理している
+
+**影響を受けるエンドポイント**:
+- ✅ `/generate-timeblock-prompt` - **修正完了**（読み込み元＋保存先変更）
+- ⚠️ `/generate-dashboard-summary` - **未修正**（次のフェーズで対応）
+- ⚠️ `/create-failed-record` - **未修正**（Vibe Scorer APIへ移動予定）
+
+#### マイグレーション
+
+**実行済みマイグレーション**:
+- `20251109222311_restore_vibe_aggregator_columns.sql`
+  - `audio_aggregator.vibe_aggregator_result` カラムを復活
+  - `audio_aggregator.vibe_aggregator_processed_at` カラムを追加
+
+#### 設計方針
+
+- **マイクロサービス分離**：責務ごとにAPIを分割する方針
+- **段階的移行**：1エンドポイントずつ確実に移行
+- **妥協なし**：理想的なアーキテクチャを優先（ユーザー数ゼロのため）
+
+#### 次の予定
+
+1. `/generate-dashboard-summary`を新しいAPI「Dashboard Summary API」に分離
+2. `/create-failed-record`をVibe Scorer APIに移動
