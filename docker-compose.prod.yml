@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   api:
-    image: 754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator:latest
-    container_name: api_gen_prompt_mood_chart
+    image: 754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-vibe-analysis-aggregator:latest
+    container_name: vibe-analysis-aggregator
     ports:
       - "127.0.0.1:8009:8009"
     env_file:

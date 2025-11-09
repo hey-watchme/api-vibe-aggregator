@@ -24,18 +24,18 @@
 | └ **ダッシュボードサマリー** | `/generate-dashboard-summary` | GET - 累積分析用 |
 | | | |
 | **🐳 Docker/コンテナ** | | |
-| └ コンテナ名 | `api_gen_prompt_mood_chart` | ⚠️ 統一前の名前 |
+| └ コンテナ名 | `vibe-analysis-aggregator` | ✅ 統一命名規則 |
 | └ ポート（内部） | 8009 | コンテナ内 |
 | └ ポート（公開） | `127.0.0.1:8009:8009` | ローカルホストのみ |
 | └ ヘルスチェック | `/health` | Docker healthcheck |
 | | | |
 | **☁️ AWS ECR** | | |
-| └ リポジトリ名 | `watchme-api-vibe-aggregator` | ⚠️ 統一前の名前 |
+| └ リポジトリ名 | `watchme-vibe-analysis-aggregator` | ✅ 統一命名規則 |
 | └ リージョン | ap-southeast-2 (Sydney) | |
-| └ URI | `754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator:latest` | |
+| └ URI | `754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-vibe-analysis-aggregator:latest` | |
 | | | |
 | **⚙️ systemd** | | |
-| └ サービス名 | （コンテナ名に依存） | ⚠️ |
+| └ サービス名 | （コンテナ名に依存） | docker-compose管理 |
 | └ 起動コマンド | `docker-compose up -d` | |
 | └ 自動起動 | enabled | サーバー再起動時に自動起動 |
 | | | |
@@ -45,7 +45,7 @@
 | └ EC2配置場所 | `/home/ubuntu/vibe-analysis-aggregator` | run-prod.sh実行ディレクトリ |
 | | | |
 | **🔗 呼び出し元** | | |
-| └ Lambda関数（タイムブロック） | `watchme-audio-worker` | 30分ごと |
+| └ Lambda関数（タイムブロック） | `watchme-audio-worker` |  |
 | └ 呼び出しURL（タイムブロック） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt` | **統一命名規則に準拠（2025-10-28修正）** |
 | └ Lambda関数（ダッシュボード） | `watchme-dashboard-summary-worker` | タイムブロック完了時 |
 | └ 呼び出しURL（ダッシュボード） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboard-summary` | **統一命名規則に準拠（2025-10-28修正）** |
@@ -67,11 +67,10 @@
 - ✅ `/watchme/server-configs/lambda-functions/watchme-dashboard-summary-worker/lambda_function.py`
 - ✅ `/watchme/api/vibe-analysis/aggregator/README.md`（このファイル）
 
-**注意**:
-- エンドポイントのみ統一完了（オプション1）
-- コンテナ名・ECRリポジトリ名は将来統一予定:
-  - コンテナ: `api_gen_prompt_mood_chart` → `vibe-analysis-aggregator`
-  - ECR: `watchme-api-vibe-aggregator` → `watchme-vibe-analysis-aggregator`
+**2025-11-09 追加修正**:
+- ✅ コンテナ名統一完了: `api_gen_prompt_mood_chart` → `vibe-analysis-aggregator`
+- ✅ ECRリポジトリ名統一完了: `watchme-api-vibe-aggregator` → `watchme-vibe-analysis-aggregator`
+- ✅ 完全な統一命名規則への移行完了
 
 ---
 
@@ -84,8 +83,8 @@
 
 ## 🐳 本番環境情報
 
-- **ECRリポジトリ**: `754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-api-vibe-aggregator`
-- **コンテナ名**: `api_gen_prompt_mood_chart`
+- **ECRリポジトリ**: `754724220380.dkr.ecr.ap-southeast-2.amazonaws.com/watchme-vibe-analysis-aggregator`
+- **コンテナ名**: `vibe-analysis-aggregator`
 - **ポート**: 8009
 - **公開URL**: `https://api.hey-watch.me/vibe-analysis/aggregator/`
 - **デプロイ方式**: GitHub Actions → ECR → EC2（完全自動）
@@ -916,6 +915,12 @@ print(result)
 ---
 
 ## 📝 変更履歴
+
+### v7.2.0 (2025-11-09)
+- **完全な統一命名規則への移行完了**
+  - コンテナ名統一: `api_gen_prompt_mood_chart` → `vibe-analysis-aggregator`
+  - ECRリポジトリ名統一: `watchme-api-vibe-aggregator` → `watchme-vibe-analysis-aggregator`
+  - docker-compose.prod.yml、GitHub Actions、README.md全て更新完了
 
 ### v7.1.0 (2025-11-09)
 - **カラム名を命名規則に統一**
