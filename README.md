@@ -46,31 +46,10 @@
 | | | |
 | **🔗 呼び出し元** | | |
 | └ Lambda関数（タイムブロック） | `watchme-audio-worker` |  |
-| └ 呼び出しURL（タイムブロック） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt` | **統一命名規則に準拠（2025-10-28修正）** |
+| └ 呼び出しURL（タイムブロック） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt` | |
 | └ Lambda関数（ダッシュボード） | `watchme-dashboard-summary-worker` | タイムブロック完了時 |
-| └ 呼び出しURL（ダッシュボード） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboard-summary` | **統一命名規則に準拠（2025-10-28修正）** |
+| └ 呼び出しURL（ダッシュボード） | ✅ `https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboard-summary` |  |
 | └ 環境変数 | `API_BASE_URL=https://api.hey-watch.me` | Lambda内 |
-
-### ✅ 統一命名規則への対応完了（2025-10-28）
-
-**API命名統一タスクに基づき、以下を修正**:
-
-1. **Nginxエンドポイント**: `/vibe-aggregator/` → `/vibe-analysis/aggregator/`
-2. **Lambda関数**: URL修正完了（watchme-audio-worker, watchme-dashboard-summary-worker）
-3. **統一原則**: `/{domain}/{service}/` に準拠
-   - domain: `vibe-analysis`
-   - service: `aggregator`
-
-**修正完了ファイル**:
-- ✅ `/watchme/server-configs/sites-available/api.hey-watch.me`
-- ✅ `/watchme/server-configs/lambda-functions/watchme-audio-worker/lambda_function.py`
-- ✅ `/watchme/server-configs/lambda-functions/watchme-dashboard-summary-worker/lambda_function.py`
-- ✅ `/watchme/api/vibe-analysis/aggregator/README.md`（このファイル）
-
-**2025-11-09 追加修正**:
-- ✅ コンテナ名統一完了: `api_gen_prompt_mood_chart` → `vibe-analysis-aggregator`
-- ✅ ECRリポジトリ名統一完了: `watchme-api-vibe-aggregator` → `watchme-vibe-analysis-aggregator`
-- ✅ 完全な統一命名規則への移行完了
 
 ---
 
@@ -126,13 +105,11 @@ git push origin main
 
 ---
 
-## 📋 更新履歴
-
-詳細な更新履歴は [CHANGELOG.md](./CHANGELOG.md) をご覧ください。
-
 ## 📋 詳細仕様書
 
 **完全な仕様書**: [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md) をご参照ください
+
+**更新履歴**: このREADME末尾の「変更履歴」セクションをご覧ください
 
 ## 🚀 クイックスタート
 
@@ -176,23 +153,18 @@ uvicorn main:app --host 0.0.0.0 --port 8009 --reload
 curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/health"
 ```
 
-#### 1日分統合処理 vibe_whisper_prompt
-48個のタイムブロックデータを統合してプロンプトを生成
-```bash
-curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-mood-prompt-supabase?device_id=d067d407-cf73-4174-a9c1-d91fb60d64d0&date=2025-07-15"
-```
-
-#### タイムブロック単位処理 dashboard
-マルチモーダルプロンプト生成（Whisper + YAMNet + OpenSMILE + 観測対象者情報）
+#### タイムブロック単位プロンプト生成（✅ 修正完了）
+30分単位のマルチモーダルプロンプト生成（ASR + SED + SER + 観測対象者情報）
 ```bash
 curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt?device_id=9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93&date=2025-09-01&time_block=16-00"
 ```
 
-#### ダッシュボード統合処理 dashboard_summary
-1日分のダッシュボード分析結果を統合して累積評価を生成
-```bash
-curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboard-summary?device_id=9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93&date=2025-09-08"
-```
+#### ⚠️ 将来分離予定のエンドポイント
+
+以下のエンドポイントは次のフェーズで別APIに分離予定です：
+
+- `/generate-dashboard-summary` - Dashboard Summary APIへ移動予定
+- `/create-failed-record` - Vibe Scorer APIへ移動予定
 
 ### ローカル開発時のURL
 開発環境では `http://localhost:8009` を使用してください。
@@ -212,115 +184,77 @@ curl -X GET "https://api.hey-watch.me/vibe-analysis/aggregator/generate-dashboar
 
 ### ✅ 完了済みエンドポイント
 
-| エンドポイント | 機能 | 出力先 | データソース | ステータス更新 |
-|---------------|------|-------------|-------------|--------------|
-| `GET /health` | ヘルスチェック | - | - | - |
-| `GET /generate-mood-prompt-supabase` | 1日分統合版（48タイムブロック） | vibe_whisper_promptテーブル | vibe_whisper | - |
-| `GET /generate-timeblock-prompt` | タイムブロック単位の高精度プロンプト生成 | dashboardテーブル（promptカラム） | vibe_whisper + behavior_yamnet + emotion_opensmile + subjects | ✅ 各テーブルのstatusをcompletedに更新 |
-| `GET /generate-dashboard-summary` | 累積型心理状態評価（summaryとvibe_scoreのみ使用） | dashboard_summaryテーブル（promptカラム） | dashboard (status='completed') | - |
+| エンドポイント | 機能 | 出力先 | データソース |
+|---------------|------|-------------|-------------|
+| `GET /health` | ヘルスチェック | - | - |
+| `GET /generate-timeblock-prompt` | 30分単位の高精度プロンプト生成 | `audio_aggregator.vibe_aggregator_result` | `audio_features`テーブル（3種類の分析結果） |
 
 ### ✅ 実装完了機能
 
-#### 1日分統合処理（/generate-mood-prompt-supabase）
-- 48個（24時間分）のトランスクリプション統合処理
-- `vibe_whisper`テーブルから読み込み、`vibe_whisper_prompt`テーブルへ保存
-- 1日の全体的な心理グラフ生成用
+#### タイムブロック単位処理（/generate-timeblock-prompt）- v7.1.0対応
 
-#### タイムブロック単位処理（/generate-timeblock-prompt）
-- **30分単位での高精度分析**に特化
+**v7.0.0-7.1.0での主要変更**：新テーブル構造への完全移行
+
+**30分単位での高精度分析**:
 - **マルチモーダルデータ統合**:
-  - 発話内容（vibe_whisperテーブル）
-  - 音響イベント（behavior_yamnetテーブル / YAMNet分類結果）
-  - 音声特徴（emotion_opensmileテーブル / OpenSMILE音声特徴）
-  - 観測対象者情報（subjectsテーブル / 年齢・性別・備考）
+  - 発話内容（`audio_features.vibe_transcriber_result` - TEXT型）
+  - 音響イベント（`audio_features.behavior_extractor_result` - JSONB型）
+  - 音声特徴（`audio_features.emotion_extractor_result` - JSONB型）
+  - 観測対象者情報（`subjects`テーブル）
 - **コンテキスト重視**:
   - 時間帯判定（早朝/午前/午後/夕方/夜/深夜）
   - 観測対象者の属性を考慮した分析
-- **ステータス管理機能**（2025-09-07追加）:
-  - プロンプト生成後、使用されたデータソースのstatusを"completed"に自動更新
-  - vibe_whisper、behavior_yamnet、emotion_opensmileの各テーブルで実装
-  - データが存在する場合のみ更新（欠損データはスキップ）
-- **注**: V1エンドポイント（Whisperのみ）は削除済み。V3（OpenSMILE統合版）に統一
+- **保存先**:
+  - `audio_aggregator.vibe_aggregator_result`（TEXT型）
+  - Primary Key: `(device_id, date)` - **1日1レコード**で累積更新
+- **重要な設計変更**:
+  - ステータス管理は**Features APIが責任を持つ**（Aggregatorは更新しない）
+  - 30分ごとに同じレコードを上書き更新
 
-#### ダッシュボード統合処理（/generate-dashboard-summary）（更新 2025-09-10）
-- **累積型の心理状態評価システム**
-- **データソース**: dashboardテーブル（status='completed'のレコード）
-- **使用データ（シンプル化）**:
-  - 各タイムブロックの`summary`（要約文）
-  - 各タイムブロックの`vibe_score`（感情スコア）
-  - ※analysis_result等の余計なデータは使用しない
-- **プロンプト生成**:
-  - その時点までの累積データで評価（例：14:30時点では00:00〜14:30のデータ）
-  - timeblock_endpoint.pyスタイルの構造化されたプロンプト
-  - 2-3文での簡潔な総合評価
-- **出力先**: dashboard_summaryテーブル
-  - `prompt`カラム: 生成されたChatGPT用プロンプト
-  - `vibe_scores`カラム: 48要素の配列（グラフ描画用）
-  - `average_vibe`カラム: 平均感情スコア
-  - 同じdevice_id + dateの組み合わせは常に最新版に更新（UPSERT）
-- **利用シーン**:
-  - その時点での累積的な心理状態の評価
-  - 新しいタイムブロックが追加されるたびに上書き更新
-  - コンパクトで効率的なデータ保存
+#### ⚠️ 次のフェーズで分離予定
+
+- `/generate-dashboard-summary` - Dashboard Summary APIへ移動予定
+- `/create-failed-record` - Vibe Scorer APIへ移動予定
 
 ### 🔄 WatchMeエコシステムでの位置づけ
 
-#### 1日分統合処理フロー
+#### タイムブロック単位処理フロー（v7.1.0）
 ```
-iOS App → Whisper API → vibe_whisper → [このAPI] → vibe_whisper_prompt → ChatGPT API
-                                             ↑
-                                    プロンプト生成・DB保存
-```
-
-#### タイムブロック単位処理フロー
-```
-vibe_whisper      ┐
-behavior_yamnet   ├→ [このAPI] → dashboard (prompt) → ChatGPT API → dashboard (summary/score)
-emotion_opensmile ┘      ↓
-                     各テーブルのstatus → "completed"
-```
-
-#### ダッシュボード統合フロー
-```
-dashboard (summary + vibe_score) → [このAPI] → dashboard_summary (prompt)
-                                        ↑
-                            累積型評価プロンプト生成
-                            （その時点までのデータのみ）
+audio_features (3種類の分析結果)
+  ├─ vibe_transcriber_result (TEXT)
+  ├─ behavior_extractor_result (JSONB)
+  └─ emotion_extractor_result (JSONB)
+           ↓
+      [このAPI] - プロンプト生成
+           ↓
+  audio_aggregator.vibe_aggregator_result
+           ↓
+      Vibe Scorer API
 ```
 
-**このAPIの役割**: 
-- 1日分統合: vibe_whisperテーブルから読み込み → プロンプト生成 → vibe_whisper_promptテーブルに保存
-- タイムブロック処理: vibe_whisper + behavior_yamnet + emotion_opensmileから読み込み → 高精度プロンプト生成 → dashboardテーブルに保存 → 各データソースのstatusを更新
-- ダッシュボード統合: dashboardテーブル（completed）のsummaryとvibe_scoreから → 累積型評価プロンプト生成 → dashboard_summaryテーブルのpromptカラムに保存
+**このAPIの役割（v7.1.0）**:
+- `audio_features`テーブルから3種類の分析結果を読み込み
+- マルチモーダルプロンプトを生成
+- `audio_aggregator.vibe_aggregator_result`に保存（1日1レコード、30分ごとに累積更新）
+- **ステータス管理はFeatures APIが実施**（このAPIは関与しない）
 
-## 📁 データ構造
+## 📁 データ構造（v7.1.0）
 
 ### 入力データ
 
-#### vibe_whisperテーブル（発話データ）
-- `device_id`: デバイス識別子
+#### audio_featuresテーブル（統合Features結果）
+- `device_id`: デバイス識別子（TEXT）
 - `date`: 日付（YYYY-MM-DD）
 - `time_block`: 時間帯（例: "00-00", "00-30"）
-- `transcription`: 音声転写テキスト
-- `status`: 処理ステータス（"pending" → "completed"）
-
-#### behavior_yamnetテーブル（音響イベントデータ）
-- `device_id`: デバイス識別子
-- `date`: 日付（YYYY-MM-DD）
-- `time_block`: 時間帯（例: "17-00", "17-30"）
-- `events`: YAMNet音響分類結果（JSONBフォーマット）
-  - `label`: イベント名（英語、例: "Speech", "Water", "Inside, small room"）
-  - `prob`: 確率（0.0〜1.0）
-- `status`: 処理ステータス（"pending" → "completed"）
-
-#### emotion_opensmileテーブル（音声特徴データ）
-- `device_id`: デバイス識別子
-- `date`: 日付（YYYY-MM-DD）
-- `time_block`: 時間帯（例: "17-00", "17-30"）
-- `selected_features_timeline`: OpenSMILE音声特徴の時系列データ（JSONBフォーマット）
-  - `timestamp`: タイムスタンプ
-  - `features`: 音声特徴（Loudness、Jitterなど）
-- `status`: 処理ステータス（"pending" → "completed"）
+- **`vibe_transcriber_result`**: 音声転写テキスト（TEXT型）
+- **`behavior_extractor_result`**: 音響イベント分類結果（JSONB型）
+  - `events`: YAMNet分類結果配列
+    - `label`: イベント名（例: "Speech", "Music"）
+    - `prob`: 確率（0.0〜1.0）
+- **`emotion_extractor_result`**: 音声特徴データ（JSONB型）
+  - OpenSMILE音声特徴の時系列データ
+  - `timestamp`, `features`（Loudness、Jitterなど）
+- `vibe_transcriber_status`, `behavior_extractor_status`, `emotion_extractor_status`: 各処理ステータス
 
 #### subjectsテーブル（観測対象者情報）
 - `subject_id`: 観測対象者ID
@@ -335,63 +269,23 @@ dashboard (summary + vibe_score) → [このAPI] → dashboard_summary (prompt)
 
 ### 出力データ
 
-#### vibe_whisper_promptテーブル（1日分統合）
-- `device_id`: デバイス識別子
+#### audio_aggregatorテーブル（集約結果）
+- `device_id`: デバイス識別子（TEXT）
 - `date`: 日付（YYYY-MM-DD）
-- `prompt`: 生成されたChatGPT用プロンプト（心理グラフJSON生成形式）
-- `processed_files`: 処理されたレコード数
-- `missing_files`: 欠損している時間帯のリスト
-- `generated_at`: 生成日時
-
-#### dashboardテーブル（タイムブロック単位）
-- `device_id`: デバイス識別子
-- `date`: 日付（YYYY-MM-DD）
-- `time_block`: 時間帯（例: "17-00"）
-- `prompt`: 生成されたプロンプト（マルチモーダル分析用）
-- `summary`: ChatGPT分析結果のサマリー（api_gpt_v1で処理後）
-- `vibe_score`: 感情スコア（-100〜100、api_gpt_v1で処理後）
-- `analysis_result`: ChatGPT分析結果の完全なJSON（api_gpt_v1で処理後）
-- `status`: 処理ステータス（"pending" → "completed"）
-- `processed_at`: 処理日時
+- **Primary Key**: `(device_id, date)` - **1日1レコード**
+- **`vibe_aggregator_result`**: 生成されたプロンプト（TEXT型）
+  - マルチモーダル分析用プロンプト
+  - 30分ごとに同じレコードを上書き更新
+- `vibe_aggregator_processed_at`: 最終処理日時
 - `created_at`: 作成日時
 - `updated_at`: 更新日時
 
-#### dashboard_summaryテーブル
-- `device_id`: デバイス識別子
-- `date`: 日付（YYYY-MM-DD）
-- `prompt`: 生成されたChatGPT用プロンプト（TEXT形式）※旧integrated_dataから変更
-  - summaryとvibe_scoreから生成した累積型評価プロンプト
-  - その時点までのデータのみを含む
-- `vibe_scores`: 感情スコア配列（48要素、グラフ描画用）
-- `average_vibe`: 平均感情スコア
-- `processed_count`: 処理済みタイムブロック数
-- `last_time_block`: 最後に処理されたタイムブロック
-- `created_at`: 作成日時
-- `updated_at`: 更新日時（同じ日付のデータは常に最新版に更新）
+### プロンプト形式
 
-### プロンプト形式の特徴
-生成されるプロンプトは、ChatGPTに心理グラフ用のJSONデータを生成させるための専用形式です：
-- **timePoints**: 48個の時間点（00:00〜23:30）
-- **emotionScores**: -100〜+100の感情スコア配列（欠損はnull）
-- **統計情報**: 平均スコア、ポジティブ/ネガティブ/ニュートラルな時間
-- **insights**: 1日の心理的傾向の自然文記述
-- **emotionChanges**: 感情の大きな変化点
-
-### 🔍 データ状態の区別（重要）
-
-このAPIは、以下の3つの状態を明確に区別して処理します：
-
-| データ状態 | vibe_whisperテーブル | 処理方法 | emotionScores | 意味 |
-|-----------|-------------------|----------|--------------|------|
-| **発話あり** | transcriptionに文字列あり | テキストを分析 | -100〜+100 | 言語的な情報があり、感情分析可能 |
-| **発話なし** | transcriptionが空文字列("") | "(発話なし)"として記録 | **0** | 録音は成功したが言語的な情報なし（咳、雑音、聞き取れない音声など） |
-| **データ欠損** | レコードが存在しない(null) | 欠損として記録 | **null** | 録音失敗、システムエラー、未処理など |
-
-#### なぜこの区別が重要か？
-- **発話なし（0点）**: 測定は正常に行われたが、言語情報がなかった時間帯。感情的にニュートラルな状態として扱います。
-- **データ欠損（null）**: 測定自体が行われなかった時間帯。統計計算から除外されます。
-
-この区別により、心理グラフで「静かに過ごしていた時間」と「測定できなかった時間」を正確に表現できます。
+生成されるプロンプトは、Vibe Scorer APIでの心理分析に最適化された構造化テキストです：
+- **マルチモーダルデータ統合**：発話内容 + 音響イベント + 音声特徴
+- **時間コンテキスト**：時間帯、観測対象者の属性
+- **分析指示**：Vibe Score算出のためのガイドライン
 
 ## 🔧 環境変数
 
@@ -420,12 +314,16 @@ dashboard (summary + vibe_score) → [このAPI] → dashboard_summary (prompt)
 }
 ```
 
-## 🔄 処理フロー
+## 🔄 処理フロー（v7.1.0）
 
-### Supabase統合処理
-1. **vibe_whisperテーブルから読み込み**: 指定device_id、dateのレコードを取得
-2. **プロンプト生成**: transcriptionフィールドからテキスト抽出・統合
-3. **vibe_whisper_promptテーブルに保存**: UPSERT（既存レコードは更新）
+### タイムブロック単位処理（/generate-timeblock-prompt）
+1. **audio_featuresテーブルから読み込み**: 指定`(device_id, date, time_block)`の3種類の分析結果を取得
+   - `vibe_transcriber_result`（TEXT）
+   - `behavior_extractor_result`（JSONB）
+   - `emotion_extractor_result`（JSONB）
+2. **観測対象者情報の取得**: `devices` → `subjects`テーブルから属性情報を取得
+3. **マルチモーダルプロンプト生成**: 3種類のデータ + 時間コンテキストを統合
+4. **audio_aggregatorに保存**: `(device_id, date)`でUPSERT（30分ごとに同じレコードを上書き更新）
 
 ## 🛡️ 堅牢性
 
@@ -780,78 +678,37 @@ python3 check_rls_issue.py  # RLS問題の診断
 python3 test_direct.py       # データ取得テスト
 ```
 
-## 🤝 Streamlit連携
-
-```python
-import requests
-import streamlit as st
-
-# 本番環境での使用
-base_url = "https://api.hey-watch.me/vibe-analysis/aggregator"
-
-# API呼び出し
-response = requests.get(
-    f"{base_url}/generate-mood-prompt-supabase",
-    params={"device_id": device_id, "date": date}
-)
-
-if response.status_code == 200:
-    result = response.json()
-    st.success(f"✅ プロンプト生成完了")
-    st.json(result)
-else:
-    st.error(f"❌ エラー: {response.text}")
-```
-
 ## 🔗 マイクロサービス統合
 
-### 外部サービスからの利用方法
+### Lambda関数からの利用方法
+
+**watchme-audio-worker** LambdaがこのAPIを呼び出しています：
 
 ```python
 import requests
-import asyncio
-import aiohttp
 
-# 同期版
-def generate_mood_prompt(device_id: str, date: str):
-    url = "https://api.hey-watch.me/vibe-analysis/aggregator/generate-mood-prompt-supabase"
-    params = {"device_id": device_id, "date": date}
-    
+# タイムブロック単位のプロンプト生成
+def generate_timeblock_prompt(device_id: str, date: str, time_block: str):
+    url = "https://api.hey-watch.me/vibe-analysis/aggregator/generate-timeblock-prompt"
+    params = {
+        "device_id": device_id,
+        "date": date,
+        "time_block": time_block
+    }
+
     response = requests.get(url, params=params)
     if response.status_code == 200:
         return response.json()
     else:
         raise Exception(f"API Error: {response.text}")
 
-# 非同期版（推奨）
-async def generate_mood_prompt_async(device_id: str, date: str):
-    url = "https://api.hey-watch.me/vibe-analysis/aggregator/generate-mood-prompt-supabase"
-    params = {"device_id": device_id, "date": date}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
-                return await response.json()
-            else:
-                raise Exception(f"API Error: {await response.text()}")
-
-# レート制限対応版
-async def generate_prompt_with_retry(device_id: str, date: str, max_retries: int = 3):
-    for attempt in range(max_retries):
-        try:
-            return await generate_mood_prompt_async(device_id, date)
-        except Exception as e:
-            if "rate_limit" in str(e).lower() and attempt < max_retries - 1:
-                wait_time = (2 ** attempt) * 60  # 指数バックオフ
-                await asyncio.sleep(wait_time)
-                continue
-            raise e
-
 # 使用例
-result = generate_mood_prompt("d067d407-cf73-4174-a9c1-d91fb60d64d0", "2025-07-15")
-print(result)
+result = generate_timeblock_prompt(
+    "9f7d6e27-98c3-4c19-bdfb-f7fda58b9a93",
+    "2025-11-09",
+    "14-30"
+)
 ```
-
 
 ### セキュリティ設定
 
@@ -862,17 +719,31 @@ print(result)
 
 ---
 
-## 📝 変更履歴（CHANGELOG）
+## 📝 変更履歴
+
+### v7.1.0（2025-11-09）- 命名規則統一完了 ✅ 最新
+
+**カラム名を命名規則 `{domain}_{technology}_result` に完全統一**
+
+**読み込み元の変更**:
+- `audio_features.transcriber_result` → `audio_features.vibe_transcriber_result`（TEXT型）
+- `audio_features.behavior_extractor_result`（JSONB型）- 変更なし
+- `audio_features.emotion_extractor_result`（JSONB型）- 変更なし
+
+**影響範囲**:
+- ✅ `/generate-timeblock-prompt` - 修正完了
+- ⚠️ `/generate-dashboard-summary` - 次のフェーズでDashboard Summary APIに分離予定
+- ⚠️ `/create-failed-record` - 次のフェーズでVibe Scorer APIに移動予定
+
+---
 
 ### v7.0.0（2025-11-09）- 新テーブル構造統一
 
-**重要な変更：データベーステーブルの統一化**
-
-#### 変更内容
+**データベーステーブルの統一化**
 
 **読み込み元の変更**:
 - ❌ 旧：`vibe_whisper.transcription`
-- ✅ 新：`audio_features.vibe_transcriber_result`（TEXT型）
+- ✅ 新：`audio_features.transcriber_result`（TEXT型）
 
 - ❌ 旧：`behavior_yamnet.events`
 - ✅ 新：`audio_features.behavior_extractor_result`（JSONB型）
@@ -880,55 +751,18 @@ print(result)
 - ❌ 旧：`emotion_opensmile.selected_features_timeline`
 - ✅ 新：`audio_features.emotion_extractor_result`（JSONB型）
 
-**保存先の変更（`/generate-timeblock-prompt`エンドポイントのみ）**:
+**保存先の変更**:
 - ❌ 旧：`dashboard.prompt`
 - ✅ 新：`audio_aggregator.vibe_aggregator_result`（TEXT型）
 - **Primary Key**: `(device_id, date)` - 1日1レコードで累積更新
 
 **削除された処理**:
-- ステータス更新関数（`update_whisper_status`, `update_yamnet_status`, `update_opensmile_status`）を削除
-  - 理由：Features API が既に自分でステータスを管理している
-
-**影響を受けるエンドポイント**:
-- ✅ `/generate-timeblock-prompt` - **修正完了**（読み込み元＋保存先変更）
-- ⚠️ `/generate-dashboard-summary` - **未修正**（次のフェーズで対応）
-- ⚠️ `/create-failed-record` - **未修正**（Vibe Scorer APIへ移動予定）
-
-#### マイグレーション
+- ステータス更新関数を削除（Features APIが既に管理しているため）
 
 **実行済みマイグレーション**:
 - `20251109222311_restore_vibe_aggregator_columns.sql`
-  - `audio_aggregator.vibe_aggregator_result` カラムを復活
-  - `audio_aggregator.vibe_aggregator_processed_at` カラムを追加
 
-#### 設計方針
-
-- **マイクロサービス分離**：責務ごとにAPIを分割する方針
-- **段階的移行**：1エンドポイントずつ確実に移行
-- **妥協なし**：理想的なアーキテクチャを優先（ユーザー数ゼロのため）
-
-#### 次の予定
-
-1. `/generate-dashboard-summary`を新しいAPI「Dashboard Summary API」に分離
-2. `/create-failed-record`をVibe Scorer APIに移動
-
----
-
-## 📝 変更履歴
-
-### v7.2.0 (2025-11-09)
-- **完全な統一命名規則への移行完了**
-  - コンテナ名統一: `api_gen_prompt_mood_chart` → `vibe-analysis-aggregator`
-  - ECRリポジトリ名統一: `watchme-api-vibe-aggregator` → `watchme-vibe-analysis-aggregator`
-  - docker-compose.prod.yml、GitHub Actions、README.md全て更新完了
-
-### v7.1.0 (2025-11-09)
-- **カラム名を命名規則に統一**
-  - 読み込み元：`transcriber_result` → `vibe_transcriber_result`
-  - 命名規則 `{domain}_{technology}_result` に準拠
-
-### v7.0.0 (2025-11-09)
-- **audio_aggregatorテーブルへの移行完了（`/generate-timeblock-prompt`のみ）**
-  - 読み込み元を統一テーブル`audio_features`に変更
-  - 保存先を`dashboard`から`audio_aggregator`に変更
-  - ステータス管理関数を削除（Features APIが管理）
+**設計方針**:
+- マイクロサービス分離：責務ごとにAPIを分割
+- 段階的移行：1エンドポイントずつ確実に移行
+- 妥協なし：理想的なアーキテクチャを優先
